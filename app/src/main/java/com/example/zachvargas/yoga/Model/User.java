@@ -1,10 +1,12 @@
 package com.example.zachvargas.yoga.Model;
 
+import com.orm.SugarRecord;
+
 import java.util.*;
 /**
  * Created by Zach Vargas on 3/6/2015.
  */
-public class User {
+public class User extends SugarRecord<User>{
     public int backendId;
 
     public Date created_at;

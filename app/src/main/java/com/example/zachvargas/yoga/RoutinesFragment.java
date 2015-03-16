@@ -3,12 +3,23 @@ package com.example.zachvargas.yoga;
 
 import android.app.Fragment;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.example.zachvargas.yoga.Model.Backend;
+import com.example.zachvargas.yoga.Model.Routine;
+import com.example.zachvargas.yoga.Model.User;
+
+import java.util.ArrayList;
 
 
 /**
@@ -16,44 +27,74 @@ import android.widget.TextView;
  */
 public class RoutinesFragment extends Fragment {
 
+    private static final String TAG = "RoutinesFragment"; //used for logging
+
 
     public RoutinesFragment() {
         // Required empty public constructor
     }
 
-
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(final LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        View parent=inflater.inflate(R.layout.fragment_routines, container, false);
+        final View parent = inflater.inflate(R.layout.fragment_routines, container, false);
 
-        //getting the LinearLayout which will hold the routines
-        LinearLayout routineContainer = (LinearLayout)parent.findViewById(R.id.routineContainer);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        User currUser = User.findById(User.class, Long.parseLong(prefs.getString("loggedInId", null)));
+        Backend.loadRoutines(currUser, new Backend.BackendCallback() {
+            @Override
+            public void onRequestCompleted(Object result) {
+                final ArrayList<Routine> routines = (ArrayList<Routine>) result;
+                Log.d(TAG, "Routine backend load success. Loaded " + routines.size() + " poses.");
 
-        for (int i = 0; i < 10; i++) {
-            View routineItem = inflater.inflate(R.layout.routine_item, null);
+                //getting the LinearLayout which will hold the routines
+                final LinearLayout routineContainer = (LinearLayout) parent.findViewById(R.id.routineContainer);
 
-            //changing the text of the routines (just junk data for now;
-            TextView routineNameText = (TextView) routineItem.findViewById(R.id.routineName);
-            TextView routineDifficultyText =
-                    (TextView)routineItem.findViewById(R.id.routineDifficulty);
+                getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        for (int i = 0; i < routines.size(); i++) {
+                            Routine currRoutine = routines.get(i);
+                            View routineItem = inflater.inflate(R.layout.routine_item, null);
 
-            routineNameText.setText("Junk Routine Name");
-            routineDifficultyText.setText("Junk Routine Difficulty");
+                            routineItem.setOnClickListener(new View.OnClickListener(){
+                                @Override
+                                public void onClick(View v) {
+                                    Intent newActivity=new Intent(getActivity(), PlayerActivity.class);
+                                    startActivity(newActivity);
+                                }
+                            });
 
-            //adding the routine to the container
-            routineContainer.addView(routineItem);
+                            //changing the text of the routines (just junk data for now;
+                            TextView routineNameText = (TextView) routineItem.findViewById(R.id.routineName);
+                            TextView routineDifficultyText =
+                                    (TextView) routineItem.findViewById(R.id.routineDifficulty);
 
-            routineItem.setOnClickListener(new View.OnClickListener(){
-                @Override
-                public void onClick(View v) {
-                    Intent newActivity=new Intent(getActivity(),PlayerActivity.class);
-                    startActivity(newActivity);
-                }
-            });
-        }
+                            routineNameText.setText(currRoutine.name);
+                            routineDifficultyText.setText("Difficulty : " + currRoutine.difficulty);
 
+                            //adding the routine to the container
+                            routineContainer.addView(routineItem);
+                        }
+                        ProgressBar progress_bar = (ProgressBar) getActivity().findViewById(R.id.progress_bar_routines);
+                        progress_bar.setVisibility(View.GONE);
+                /*for (Routine routine : routines) {
+                    Log.d(TAG, "Routine: " + routine.toString());
+                }*/
+                    }
+                });
+            }
+
+            @Override
+            public void onRequestFailed(final String message) {
+                Log.d(TAG, "Received error from Backend: " + message);
+                getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        Toast.makeText(getActivity().getApplicationContext(), message, Toast.LENGTH_SHORT).show();
+                        ProgressBar progress_bar = (ProgressBar) getActivity().findViewById(R.id.progress_bar_routines);
+                        progress_bar.setVisibility(View.GONE);
+                    }
+                });
+            }
+        });
         return parent;
     }
 }
